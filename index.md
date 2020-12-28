@@ -493,9 +493,6 @@ function TestDecorator (data) {
 @TestDecorator(true) //使用TestDecorator修饰器修饰MyTestableClass类
 class MyTestableClass {}
 
-
-
-
 注：
     + 修饰器对类的行为的改变，是代码编译时发生的，而不是在运行时
 	+ 修饰器只能用于类和类的方法，不能用于函数，因为存在函数提升。
@@ -529,8 +526,228 @@ export {readFile, read}  // import * as obj form '' // import {name} from ''
 export * from 'fs'
 
 
+Object.defineProperty(obj, "prop", {
+    configurable: false, // 当且仅当该属性的 configurable 键值为 true 时，该属性的描述符才能够被改变，同时该属性也能从对应的对象上被删除。
+    enumerable: false, // 当且仅当该属性的 enumerable 键值为 true 时，该属性才会出现在对象的枚举属性中。
+    writable: false, // 表示是否可以修改属性的值。
+    value: "", // 该属性对应的值。可以是任何有效的 JavaScript 值（数值，对象，函数等）。
+  });
+  
+  // 这样设置之后，prop属性就变成了不能删除、不可重新修改特性、不可枚举、不能修改的属性值的属性。
+
+
+  function myFreeze(obj) {
+    // 判断参数是否为Object类型
+    if (obj instanceof Object) {
+      for (let key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          Object.defineProperty(obj, key, {
+            writable: false, // 设置只读
+          });
+          Object.seal(obj); // 封闭对象
+        }
+      }
+    }
+    return obj;
+  }
+
+  const obj = { name: "yd" };
+Object.getOwnPropertyDescriptors(obj);
+/* 
+{
+    name:{
+        configurable: true
+        enumerable: true
+        value: "yd"
+        writable: true
+    }
+}
+*/
+
+Object.seal(obj);
+Object.getOwnPropertyDescriptors(obj);
+/* 
+{
+    name:{
+        configurable: false
+        enumerable: true
+        value: "yd"
+        writable: true
+    }
+}
+*/
+
+// 这时如果再去配置就失效了
+Object.defineProperty(obj, "name", {
+  writable: false,
+});
+Object.getOwnPropertyDescriptors(obj);
+/* 
+{
+    name:{
+        configurable: false
+        enumerable: true
+        value: "yd"
+        writable: true
+    }
+}
+*/
+// writable 已经不可以配置了
+
+
 ## Header 2
+
+
+// 服务器代码
+const WebSocket = require('ws');
+
+// 模块 立即执行函数
+;(function(WebSocket) {
+  // 创建服务器 运行在8000端口
+  const server = new WebSocket.Server({
+    port: 8000
+  });
+
+  // 初始化
+  const init = () => {
+    bindEvent();
+  };
+
+  // 事件处理函数的绑定
+  function bindEvent() {
+    server.on('open', handleOpen);
+    server.on('close', handleClose);
+    server.on('error', handleError);
+    server.on('connection', handleConnection);
+  }
+
+  function handleOpen() {
+    console.log('backend: WebSocket server open');
+  }
+
+  function handleClose() {
+    console.log('backend: WebSocket server close');
+  }
+
+  function handleError() {
+    console.log('backend: WebSocket server error');
+  }
+
+  function handleConnection(ws) {
+    console.log('backend: WebSocket server connection');
+    
+    // 监听用户发送消息的事件
+    ws.on('message', handleIncomingMessage);
+  }
+
+  function handleIncomingMessage(incomingMessage) {
+    console.log(server.clients.forEach(client => {
+      client.send(incomingMessage);
+    }));
+  }
+
+  init();
+})(WebSocket);
 ### Header 3
+
+<template>
+  <div>
+    <h1>首页</h1>
+    <input type="text" v-model="message" />
+    <button @click="sendMessage">发送消息</button>
+    <ul v-if="messageList.length > 0">
+      <li v-for="item in messageList" :key="item.id">
+        <p>
+          <span>{{ item.user }}</span> |
+          <span>{{ new Date(item.dateTime) }}</span>
+        </p>
+
+        <p>消息：{{ item.message }}</p>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+// 检查是否有username 1
+// 服务器运行的地址
+// 协议 http(s) ws(s)
+// WebSocket实例
+const ws = new WebSocket('ws://localhost:8000');
+
+export default {
+  data() {
+    return {
+      // 登录后的用户名
+      username: '',
+      // 待发送的消息
+      message: '',
+      // 所有消息
+      messageList: [],
+    };
+  },
+  methods: {
+    sendMessage() {
+      const message = this.message;
+
+      if (!message.trim().length) {
+        return;
+      }
+
+      // 发送消息的格式
+      // id
+      // user     用户名
+      // dataTime 发送的时间
+      // message  消息
+      const messageData = {
+        id: Math.random(),
+        user: this.username,
+        dateTime: new Date().getTime(),
+        message: this.message,
+      };
+
+      // 发送消息 WebSocket
+      // 浏览器 <-> 服务器  格式  String？Object？Number？
+      // JSON字符串 6
+      ws.send(JSON.stringify(messageData));
+
+      this.message = '';
+    },
+    handleWsOpen() {
+      console.log('frontend: WebSocket open');
+    },
+    handleWsClose() {
+      console.log('frontend: WebSocket close');
+    },
+    handleWsError() {
+      console.log('frontend: WebSocket error');
+    },
+    handleWsMessage(e) {
+      console.log('frontend: WebSocket message', e.data);
+      const message = JSON.parse(e.data);
+      console.log('message', message);
+      this.messageList.push(message);
+    },
+  },
+  mounted() {
+    this.username = localStorage.getItem('username');
+
+    if (!this.username) {
+      // 如果没有登录，我们应该跳转到登录页面 login
+      this.$router.push('/login');
+      return;
+    }
+
+    ws.addEventListener('open', this.handleWsOpen.bind(this));
+    ws.addEventListener('close', this.handleWsClose.bind(this));
+    ws.addEventListener('error', this.handleWsError.bind(this));
+    ws.addEventListener('message', this.handleWsMessage.bind(this));
+  },
+};
+</script>
+
+<style></style>
+
 
 - Bulleted
 - List
