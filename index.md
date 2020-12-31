@@ -748,6 +748,40 @@ export default {
 
 <style></style>
 
+Array.prototype.reduce=function(fn,initialValue){
+    let index = 0;
+    if (!initialValue) {
+        initialValue=this[0];
+        index++
+    }
+    while (index<this.length) {
+        initialValue=fn(initialValue,this[index],index,this)
+        index++
+    }
+    return initialValue
+}
+
+HTML/CSS/JS：精通h5、css3、es3/es5/es6各项特性
+TS：熟悉type、interface、访问修饰符、高阶泛型
+Vue：熟悉Vue1/2/3底层实现原理，包括但不限于各API、生命周期函数、数据绑定与虚拟dom、模板编译及编译时优化
+React：熟悉虚拟dom及其diff算法、fiber原理、hooks底层原理
+Angular：熟悉脏值检查原理及rxjs
+网络：熟悉网络协议模型及TCP/IP协议，包括TCP/IP协议报文、滑动窗口、拥塞控制、TCP慢启动、握手挥手过程及状态码，了解UDP原理，熟悉http1.0/1.1/2/3及其差异，熟悉https原理，熟悉http各状态码
+浏览器：熟悉底层渲染原理，绘制与合成原理，ignition/turbofan编译器对js的优化原理，gc机制，了解v8对js底层数据结构的实现原理
+缓存：熟悉强缓存与协商缓存原理
+跨域：了解原理及常见处理手段，熟悉oAuth与jwtToken对登录的处理手段
+Web安全：熟悉xss/csrf/sql注入原理，及前后端防御手段
+Node：了解libuv架构，事件回调模型。熟悉express、koa、egg等框架，熟悉洋葱模型
+工程化：熟悉webpack、rollup、vite、snowpack原理及优化手段，熟悉docker、k8s、jenkins，熟悉运维部署手段及监控报警方案
+跨平台：熟悉electron、flutter、weex、react native、ionic等跨端框架，熟悉小程序及其实现原理，精通快应用原理并负责其引擎核心模块编写
+性能优化：熟悉performance对应api及首屏检测方式，熟悉雅虎军规，了解端侧预渲染、SSR、snapshot、资源数据预缓存等方案及适用场景
+流媒体：熟悉h264/h265视频格式及其编解码手段，熟悉ffmpeg、broadway、flv、videojs等音视频处理方案
+图形学：熟悉webGL及three.js，熟悉OpenGL原理，包括bezier曲线曲面、b样条曲线曲面、phong光照模型及其数学公式
+AI：熟悉机器学习及深度学习，熟悉SVM（包括linear SVM与kernel SVM）、卷积神经网络、空间金字塔池化等常见分类学习手段，并能通过数学手段对算法进行优化
+数据库：熟悉sql基本语法、了解mongoDB、redis等nosql数据库、了解索引聚合等基础优化手段
+计算机基础：熟悉数据结构、算法、编译原理、软件工程、设计模式、操作系统等相关知识
+后台语言：熟悉C/C++，了解java/php/python
+面向未来：了解webAssembly、serverless
 
 - Bulleted
 - List
