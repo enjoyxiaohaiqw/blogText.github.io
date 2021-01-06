@@ -783,6 +783,185 @@ AI：熟悉机器学习及深度学习，熟悉SVM（包括linear SVM与kernel S
 后台语言：熟悉C/C++，了解java/php/python
 面向未来：了解webAssembly、serverless
 
+/*
+ * JS中的数据类型：
+ *    + 原始值类型
+ *      + number : NaN「不是一个有效数字」、Infinity「无穷大的值」
+ *      + string : 基于 单引号/双引号/反引号「模板字符串」 包起来的都是字符串
+ *      + boolean : true/false
+ *      + null
+ *      + undefined
+ *      + symbol : 唯一值
+ *      + bigint : 大数
+ *    + 对象类型 
+ *      + 标准普通对象 object
+ *      + 标准特殊对象 Array/RegExp/Date/Error/Math/ArrayBuffer/DataView/Set/Map...
+ *      + 非标准特殊对象 Number/String/Boolean/Symbol/BigInt... 基于构造函数「或者Object」创在出来的原始值对象类型的格式信息，类型属于对象类型
+ *      + 可调用对象「实现了call方法」 function
+ */
+
+// 数据类型检测
+//  + typeof 运算符
+//  + instanceof 「本意：检测实例是否属于某个类」
+//  + constructor「本意：获取构造函数」
+//  + Object.prototype.toString.call([value]) 检测数据类型的
+//  ------
+//  + Array.isArray([value]) 检测值是否为数组
+// =======
+// typeof [value]
+//   + 返回[value]所属类型的字符串，例如：'number'/'string'...
+//   + 不能检测null   typeof null->'object'
+//   + 除可调用对象「函数」会返回'function'「不论是箭头函数、还是构造函数、还是生成器函数、在以及普通函数等，都返回的'function'」，其余的对象数据值返回都是'object'；
+//   + 检测一个未被声明的变量不会报错，返回'undefined'
+//   -------
+//   GetValue(val)「C++内部提供的方法」，按照值存储的二进制进行检测的
+//     + 对象 000 -> 实现call，则返回‘function’，没实现call返回‘object’
+//     + null 000000
+//     + undefined  -2^30
+//     + 数字 -> 整数1  浮点数010
+//     + 字符串 100
+//     + 布尔 110
+//     + ......
+//   -------
+//   typeof 检测数据类型还是很快的，检测原始值类型『除了null』还是很准确的
+
+/* 
+// 字面量:原始值
+let n = 10;
+// 构造函数:对象值
+let m = new Number(10);
+let x = Object(10);
+// new Symbol() Uncaught TypeError:Symbol is not a constructor
+// new BigInt() Uncaught TypeError: BigInt is not a constructor 
+*/
+
+/* 
+// 最大安全数字：9007199254740991，超过这个数字进行运算就不准确了
+// console.log(Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER);
+// 问题:服务器中有 longInt 长整型这种值，如果把这样的值返回给客户端，则客户端无法进行有效的处理「一般服务都是以字符串返回，但是字符串进行计算还是需要转换为数字才可以，还是不准确」
+BigInt('9007199254740992134') -> 9007199254740992134n
+9007199254740992134n + 1n
+(9007199254740992133n).toString() -> "9007199254740992133" 
+*/
+
+/* 
+let n = Symbol('AA');
+let m = Symbol('AA');
+console.log(n === m); //->false 
+
+// 1.对象的唯一属性
+let key = Symbol();
+let obj = {
+    [key]: 100
+};
+console.log(obj[key]);
+let arr = Object.getOwnPropertySymbols(obj);
+arr.forEach(item => {
+    console.log(obj[item]);
+});
+
+// 2.宏观管理标识：保证标志唯一性（vuex/redux）
+
+// 3.底层原理
+//   Symbol.hasInstance
+//   Symbol.iterator
+//   Symbol.toPrimitive
+//   Symbol.toStringTag
+//   ......
+*/
+
+/* 
+if (NaN === NaN) {
+    // 不相等的：所以不能基于“是否等于NaN”来检测值是否为有效数字
+    // isNaN([value])：不论[value]啥类型，默认隐式转换为数字类型「Number([value])」，再校验是否为有效数字，如果是有效数字，返回false，不是有效数字才返回true
+    // Object.is(NaN,NaN)：true 「不兼容IE（Edge除外）」
+} 
+*/
+
+/*
+ * 把其它类型「原始值」转换为对象：Object([value])
+ *  
+ * 把其它类型转换为数字
+ *   + Number([value])
+ *     + 一般用于隐式转换「数学运算、isNaN、==比较...」
+ *     + 字符串->数字  空字符串变为0  字符串中只要出现非有效数字字符结果就是NaN
+ *     + 布尔->数字  true变为1  false变为0
+ *     + null->0
+ *     + undefined->NaN
+ *     + Symbol->报错
+ *     + BigInt->正常转换
+ *     + 对象遵循 Symbol.toPrimitive/valueOf/toString/Number
+ * 
+ *   + parseInt/parseFloat([value])
+ *     + 首先会把[value]变为字符串，从字符串左侧第一个字符开始查找，直到找到一个非有效数字字符为止，把找到的结果转换为数字，一个都没找到，结果就是NaN「parseFloat多识别一个小数点」
+ *   + ...
+ * 
+ * 把其它类型转换为字符串
+ *   规则：原始值转换是直接用引号包起来「bigint会去除n」；除对象转换为字符串是比较特殊的；
+ *   + toString「排除Object.prototype.toString{检测数据类型}」
+ *   + 字符串/模板字符串拼接「“+”在JS中除了数学运算还有字符串拼接{但是其它运算符一般都是数学运算}」
+ *   + ...
+ * 
+ * 把其它类型转换为布尔
+ *   规则：只有“0、NaN、null、undefined、空字符串”会变为false，其余都是转换为true
+ *   + Boolean([value])
+ *   + !![value]  
+ *   + ![value] 转换为布尔类型取反
+ *   + 条件判断  例如：if(1){}
+ *   + A||B  A&&B
+ *   + ...
+ */
+
+// console.log(1 + 1); //->2
+// console.log(1 + '1'); //->'11'
+// console.log(1 - '1'); //->0
+// “+”左右两边，有一边出现了 字符串或者部分对象 则都是按照字符串拼接处理的
+
+
+// CASE3:不是所有对象都是字符串拼接
+//   规则：
+//   + 先去调取对象的 Symbol.toPrimitive 属性值，如果没有这个属性
+//   + 再去调取对象的 valueOf 获取原始值，如果不是原始值
+//   + 再去调用对象的 toString 转换为字符串「如果是想转换为数字，则还会调用Number处理」
+// console.log(10 + [10, 20]); //->"1010,20"
+// console.log(10 + new Number(10)); //->20   new Number(10).valueOf()有原始值的
+// console.log(+new Date()); //->1609941989208
+
+/* let obj = {x: 10};
+console.log(10 + obj); //->"10[object Object]" */
+
+/* let obj = {
+    x: 10,
+    // obj[Symbol.toPrimitive] && valueOf && toString
+    [Symbol.toPrimitive](hint) {
+        // console.log(hint); //=>”default“、”string“、”number“
+        return this.x;
+    }
+};
+console.log(10 + obj); //->20 */
+
+
+// CASE2:“+”有一边出现对象
+// let n = 10;
+// // {}+n -> 10  把左侧的{}当做代码块，不参与运算，运算的只有 +n
+// // n+{} -> '10[object Object]' 字符串拼接
+
+// CASE1:“+”只有一边
+// let n = '10';
+// console.log(+n); //10 ->转换为数字
+// console.log(++n); //11 ->转换为数字然后累加1
+// console.log(n++); //11 ->转换为数字然后累加1
+// i++ 和 i=i+1 以及 i+=1  三个是否一样？
+//   + i=i+1 & i+=1 是一样的
+//   + i++一定返回的是数字 但是i+=1就不一定了，有可能是字符串拼接
+// let i = 10;
+// // console.log(5 + (++i)); //先i累加1，累加后的结果运算  16 i->11
+// // console.log(5 + (i++)); //先运算 再累加1  15 i->11
+
+
+// console.log(!![]); //->true
+// console.log(!!-1); //->true
+
 - Bulleted
 - List
 
