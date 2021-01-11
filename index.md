@@ -982,6 +982,521 @@ exportfunction validateEmail(str) {
     return reg.test(str)
 }
 
+
+前端
+前端框架使用Vue+Element UI
+1. 使用vue-cli3搭建环境
+2. 安装Element UI
+3.  main.js
+import Vue from 'vue'
+import App from './App.vue'
+import ElementUI from 'element-ui';
+import 'element-ui/lib/theme-chalk/index.css';
+Vue.use(ElementUI);
+Vue.config.productionTip = false
+new Vue({
+  render: h => h(App)
+}).$mount('#app')
+上传组件：
+1. 上传、恢复、暂停暂停按钮
+2. hash计算进度
+3. 上传文件总进度
+<template>
+  <div id="app">
+    <div>
+      <input
+        type="file"
+        :disabled="status !== Status.wait"
+        @change="handleFileChange"
+      />
+      <el-button @click="handleUpload" :disabled="uploadDisabled"
+        >上传</el-button
+      >
+      <el-button @click="handleResume" v-if="status === Status.pause"
+        >恢复</el-button
+      >
+      <el-button
+        v-else
+        :disabled="status !== Status.uploading || !container.hash"
+        @click="handlePause"
+        >暂停</el-button
+      >
+    </div>
+    <div>
+      <div>计算文件 hash</div>
+      <el-progress :percentage="hashPercentage"></el-progress>
+      <div>总进度</div>
+      <el-progress :percentage="fakeUploadPercentage"></el-progress>
+    </div>
+    <el-table :data="data">
+      <el-table-column
+        prop="hash"
+        label="切片hash"
+        align="center"
+      ></el-table-column>
+      <el-table-column label="大小(KB)" align="center" width="120">
+        <template v-slot="{ row }">
+          {{ row.size | transformByte }}
+        </template>
+      </el-table-column>
+      <el-table-column label="进度" align="center">
+        <template v-slot="{ row }">
+          <el-progress
+            :percentage="row.percentage"
+            color="#909399"
+          ></el-progress>
+        </template>
+      </el-table-column>
+    </el-table>
+  </div>
+</template>
+文件上传和断点续传逻辑
+1. 核心是Blob.prototype.slice 方法，将源文件切成多个切片
+2. 根据切片内容生成hash，此处用到的是spark-md5.js，因为解析切片内容比较耗时，所以开辟了WebWorker线程来处理hash的生成，在处理切片hash的时候，还与主线程进行通信返回进度。
+3.  向服务器发请求，检验文件切片是否上传,返回是否需要继续上传和已上传列表（断点续传核心）。
+4. 利用http 的可并发性，同时上传多个切片，减少上传时间
+5. 切片上传完成，给服务器发送合并切片请求
+• 常量和基础属性
+<script>
+ //单个切片大小
+const SIZE = 10*1024*1024;//10MB
+//状态常量
+const Status = {
+  wait: "wait",
+  pause: "pause",
+  uploading: "uploading"
+};
+export default {
+   name: "App",
+   filters: {
+    transformByte(val) {
+      return Number((val / 1024).toFixed(0));
+    }
+  },
+    data() {
+    return {
+      Status,
+      container: { //保存文件信息
+        file: null,
+        hash: "",//所有切片hash
+        worker: null
+      },
+      hashPercentage:0,//hash进度百分比
+      data: [],//保存所有切片信息
+      requestList: [],//请求列表
+      status: Status.wait,//状态，默认为等待
+      fakeUploadPercentage: 0//文件上传总进度
+    };
+  },
+}
+</script>
+• 计算属性、watch
+computed: {
+  //上传按钮不可用
+    uploadDisabled() {
+      return (
+        !this.container.file ||
+        [Status.pause, Status.uploading].includes(this.status)
+      );
+    },
+      //下载进度百分比
+    uploadPercentage() {
+      if (!this.container.file || !this.data.length) return 0;
+      const loaded = this.data
+        .map(item => item.size * item.percentage)
+        .reduce((acc, cur) => acc + cur);
+      return parseInt((loaded / this.container.file.size).toFixed(2));
+    }
+  },
+  watch: {
+    //下载进度百分比
+    uploadPercentage(now) {
+      if (now > this.fakeUploadPercentage) {
+        this.fakeUploadPercentage = now;
+      }
+    }
+  },
+• methods：三个按钮上面的方法定义
+methods: {
+  //中止处理函数
+    handlePause() {
+      this.status = Status.pause;
+      this.resetData();
+    },
+    resetData() {
+      //中止请求列表中的所有请求
+      this.requestList.forEach(xhr => {
+        if (xhr) {
+          xhr.abort();
+        }
+      });
+      this.requestList = [];
+      if (this.container.worker) {
+        this.container.worker.onmessage = null;
+      }
+    },
+     //恢复处理函数
+    async handleResume() {
+      this.status = Status.uploading;
+      //获取已经上传的文件名和hash
+      const { uploadedList } = await this.verifyUpload(
+        this.container.file.name,
+        this.container.hash
+      );
+      await this.uploadChunks(unloadedList);
+    },
+    //file input change事件触发
+    handleFileChange(e){
+      const [file] = e.target.files;
+      if(!file) return;
+      this.resetData();
+      Object.assign(this.$data,this.$options.data());
+      this.container.file = file;
+    }
+}
+• 核心：文件上传逻辑  切片=>hash=>校验=>批量上传
+async handleUpload(){
+      if(!this.container.file) return;
+      this.status = Status.uploading;
+      //生成文件切片
+      const fileChunkList = this.createFileChunk(this.container.file);
+      //根据切片列表计算切片hash
+      this.container.hash = await this.calculateHash(fileChunkList);
+      //检验文件切片是否上传,返回是否需要上传和已上传列表
+      const { shouldUpload,uploadedList } = await this.verifyUpload(
+        this.container.file.name,
+        this.container.hash
+      );
+      //没有需要上传的文件切片
+      if(!shouldUpload){
+        this.$message.sucess('秒传：上传成功');
+        this.status = Status.wait;
+        return;
+      }
+      //根据文件列表生成每个切片的信息对象
+      this.data = fileChunkList.map(({file},index)=>({
+        fileHash : this.container.hash,
+        index,
+        hash: this.container.hash + '-'+index,
+        chunk:file,
+        size:file.size,
+        percentage:uploadedList.includes(index)?100:0
+      }));
+      //上传文件切片
+      await this.uploadChunks(uploadedList);
+    },
+• 文件核心逻辑实现：
+生成文件切片：file.slice()
+    // 生成文件切片 file.slice
+    createFileChunk(file, size = SIZE) {
+      const fileChunkList = [];
+      let cur = 0;
+      while (cur < file.size) {
+        fileChunkList.push({ file: file.slice(cur, cur + size) });
+        cur += size;
+      }
+      return fileChunkList;
+    },
+生成文件切片hash: webworker
+    // 生成文件 hash（web-worker）
+    calculateHash(fileChunkList) {
+      return new Promise(resolve => {
+        this.container.worker = new Worker("/hash.js");
+        //与worker通信
+        this.container.worker.postMessage({ fileChunkList });
+        this.container.worker.onmessage = e => {
+          const { percentage, hash } = e.data;
+          this.hashPercentage = percentage;
+          //返回总文件生成hash进度的百分比，如果切片hash全部生成，返回所有切片hash组成的对象
+          if (hash) {
+            resolve(hash);
+          }
+        };
+      });
+    },
+hash.js：边计算边与主线程进行通信，返回hash计算进度
+self.importScripts("/spark-md5.min.js"); // 导入脚本
+// 生成文件 hash
+self.onmessage = e => {
+  const { fileChunkList } = e.data;
+  const spark = new self.SparkMD5.ArrayBuffer();
+  let percentage = 0;
+  let count = 0;
+  const loadNext = index => {
+    const reader = new FileReader();//异步读取文件，在webworker中使用
+    reader.readAsArrayBuffer(fileChunkList[index].file);//读取文件完成后，属性result保存着二进制数据对象
+    //文件读取完成后触发
+    reader.onload = e => {
+      //递归计数器
+      count++;
+      spark.append(e.target.result);//append ArrayBuffer数据
+      if (count === fileChunkList.length) {
+        self.postMessage({
+          percentage: 100,
+          hash: spark.end()//完成hash
+        });
+        self.close();//关闭 Worker 线程。
+      } else {
+        percentage += 100 / fileChunkList.length;
+        self.postMessage({
+          percentage
+        });
+        loadNext(count);//递归继续
+      }
+    };
+  };
+  loadNext(0);
+};
+断点续传核心：文件切片完成之后，向服务器发请求检验文件切片是否已经上传
+    async verifyUpload(filename,fileHash){
+      const { data } = await this.request({
+        url:'http://localhost:3000/verify',//验证接口
+        headers:{
+          'content-type':'application/json'
+        },
+        data:JSON.stringify({
+          filename,
+          fileHash
+        })
+      })
+      //返回数据
+      return JSON.parse(data);
+    },
+上传文件切片：过滤已经上传的文件+Promise.all并发请求
+//上传文件切片，同时过滤已经上传的切片
+    async uploadChunks(uploadedList = []){
+      const requestList = this.data
+        .filter(({hash})=>!uploadedList.includes(hash)) //过滤已经上传的chunks
+        .map(({chunk,hash,index})=>{
+          const formData = new FormData();
+          formData.append('chunk',chunk);
+          formData.append('hash',hash);
+          formData.append("filename", this.container.file.name);
+          formData.append("fileHash", this.container.hash);
+          return { formData,index }
+        })//创建表单数据
+        .map(async ({formData,index})=>
+          this.request({
+            url:'http://localhost:3000',
+            data:formData,
+            onProgress : this.createProgressHandler(this.data[index]),
+            requestList:this.requestList//将xhr push到请求列表
+          })
+        )//创建请求列表
+        //并发上传
+        await Promise.all(requestList);
+        //已经上传切片数量+本次上传切片数量==所有切片数量时 
+        //切片上传完成，给服务器发送合并切片请求
+        if(uploadedList.length + requestList.length === this.data.length){
+          await this.mergeRequest();
+        } 
+    }
+合并切片：服务端发送请求
+    // 通知服务端合并切片
+    async mergeRequest() {
+      await this.request({
+        url: "http://localhost:3000/merge",
+        headers: {
+          "content-type": "application/json"
+        },
+        data: JSON.stringify({
+          size: SIZE,
+          fileHash: this.container.hash,
+          filename: this.container.file.name
+        })
+      });
+      this.$message.success("上传成功");
+      this.status = Status.wait;
+    },
+用原生xhr进行封装http请求
+// xhr
+    request({
+      url,
+      method = "post",
+      data,
+      headers = {},
+      onProgress = e => e,
+      requestList
+    }) {
+      return new Promise(resolve => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = onProgress;
+        xhr.open(method, url);
+        Object.keys(headers).forEach(key =>
+          xhr.setRequestHeader(key, headers[key])
+        );
+        xhr.send(data);
+        xhr.onload = e => {
+          // 将请求成功的 xhr 从列表中删除
+          if (requestList) {
+            const xhrIndex = requestList.findIndex(item => item === xhr);
+            requestList.splice(xhrIndex, 1);
+          }
+          resolve({
+            data: e.target.response
+          });
+        };
+        // 暴露当前 xhr 给外部
+        requestList?.push(xhr);
+      });
+    }
+服务端
+开启服务：未使用node框架，原生利用http模块
+const Controller = require("./controller");
+const http = require("http");
+const server = http.createServer();
+const controller = new Controller();
+server.on("request", async (req, res) => {
+  //设置响应头，允许跨域
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  if (req.method === "OPTIONS") {
+    res.status = 200;
+    res.end();
+    return;
+  }
+  //切片验证
+  if (req.url === "/verify") {
+    console.log(req);
+    await controller.handleVerifyUpload(req, res);
+    return;
+  }
+//切片合并
+  if (req.url === "/merge") {
+    await controller.handleMerge(req, res);
+    return;
+  }
+//切片提交
+  if (req.url === "/") {
+    await controller.handleFormData(req, res);
+  }
+});
+server.listen(3000, () => console.log("正在监听 3000 端口"));
+controller.js
+合并切片的方式：使用stream pipe方式，节省内存，边读边写入，占用内存更小，效率更高
+const multiparty = require("multiparty");//解析文件上传
+const path = require("path");
+const fse = require("fs-extra");//fs模块拓展
+const extractExt = filename =>
+filename&&filename.slice(filename.lastIndexOf("."), filename.length); // 提取后缀名
+const UPLOAD_DIR = path.resolve(__dirname, "..", "target"); // 大文件存储目录
+//使用stream pipe方式，合并切片
+const pipeStream = (path, writeStream) =>
+  new Promise(resolve => {
+    const readStream = fse.createReadStream(path);
+    readStream.on("end", () => {
+      fse.unlinkSync(path);
+      resolve();
+    });
+    readStream.pipe(writeStream);
+  });
+// 合并切片
+const mergeFileChunk = async (filePath, fileHash, size) => {
+  const chunkDir = path.resolve(UPLOAD_DIR, fileHash);
+  const chunkPaths = await fse.readdir(chunkDir);
+  // 根据切片下标进行排序
+  // 否则直接读取目录的获得的顺序可能会错乱
+  chunkPaths.sort((a, b) => a.split("-")[1] - b.split("-")[1]);
+  await Promise.all(
+    chunkPaths.map((chunkPath, index) =>
+      pipeStream(
+        path.resolve(chunkDir, chunkPath),
+        // 指定位置创建可写流
+        fse.createWriteStream(filePath, {
+          start: index * size,
+          end: (index + 1) * size
+        })
+      )
+    )
+  );
+  fse.rmdirSync(chunkDir); // 合并后删除保存切片的目录
+};
+const resolvePost = req =>
+  new Promise(resolve => {
+    let chunk = "";
+    req.on("data", data => {
+      chunk += data;
+    });
+    req.on("end", () => {
+      resolve(JSON.parse(chunk));
+    });
+  });
+// 返回已经上传切片名
+const createUploadedList = async fileHash =>
+  fse.existsSync(path.resolve(UPLOAD_DIR, fileHash))
+    ? await fse.readdir(path.resolve(UPLOAD_DIR, fileHash))
+    : [];
+module.exports = class {
+  // 合并切片
+  async handleMerge(req, res) {
+    const data = await resolvePost(req);
+    const { fileHash, filename, size } = data;
+    const ext = extractExt(filename);
+    const filePath = path.resolve(UPLOAD_DIR, `${fileHash}${ext}`);
+    await mergeFileChunk(filePath, fileHash, size);
+    res.end(
+      JSON.stringify({
+        code: 0,
+        message: "file merged success"
+      })
+    );
+  }
+  // 处理切片
+  async handleFormData(req, res) {
+    const multipart = new multiparty.Form();
+    multipart.parse(req, async (err, fields, files) => {
+      if (err) {
+        console.error(err);
+        res.status = 500;
+        res.end("process file chunk failed");
+        return;
+      }
+      const [chunk] = files.chunk;
+      const [hash] = fields.hash;
+      const [fileHash] = fields.fileHash;
+      const [filename] = fields.filename;
+      const filePath = path.resolve(
+        UPLOAD_DIR,
+        `${fileHash}${extractExt(filename)}`
+      );
+      const chunkDir = path.resolve(UPLOAD_DIR, fileHash);
+      // 文件存在直接返回
+      if (fse.existsSync(filePath)) {
+        res.end("file exist");
+        return;
+      }
+      // 切片目录不存在，创建切片目录
+      if (!fse.existsSync(chunkDir)) {
+        await fse.mkdirs(chunkDir);
+      }
+      await fse.move(chunk.path, path.resolve(chunkDir, hash));
+      res.end("received file chunk");
+    });
+  }
+  // 验证是否已上传/返回已上传切片下标
+  async handleVerifyUpload(req, res) {
+    const data = await resolvePost(req);
+    console.log(data);
+    const { fileHash, filename } = data;
+    const ext = extractExt(filename);
+    const filePath = path.resolve(UPLOAD_DIR, `${fileHash}${ext}`);
+    if (fse.existsSync(filePath)) {
+      res.end(
+        JSON.stringify({
+          shouldUpload: false
+        })
+      );
+    } else {
+      res.end(
+        JSON.stringify({
+          shouldUpload: true,
+          uploadedList: await createUploadedList(fileHash)
+        })
+      );
+    }
+  }
+};
+
 - Bulleted
 - List
 
