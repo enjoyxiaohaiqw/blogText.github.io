@@ -1951,6 +1951,87 @@ let bool = valid([
 ])
 console.log(bool)
 
+// 写个 mySetInterVal(fn, a, b),每次间隔 a,a+b,a+2b 时间，写个 myClear，停止它
+
+// function myInterVal(fn,a,b){
+//     let timeArr = [a,a+b,a+2*b]
+//     let timer,i =0
+//      function timeout(){
+//         timer =  setTimeout(()=>{
+//             fn()
+//             timeout()
+//         },timeArr[i%timeArr.length])
+//         i++
+//      }
+//      timeout()
+//      return timer
+// }
+// let transTimer = myInterVal(()=>{console.log(1);},1000,2000)
+// clearTimeout(transTimer)
+
+
+class MyInterVal {
+    constructor(fn,a,b){
+        this.fn = fn;
+        this.a = a
+        this.b = b
+        this.number = 0;
+        this.timer = -1;
+    }
+    start(){
+                this.timer =  setTimeout(()=>{
+                    this.fn();
+                    this.number++
+                    this.start()
+                },this.a + this.number * this.b) 
+            }
+            clear(){
+                clearTimeout(this.timer);
+                this.number = 0
+            }
+    
+}
+
+const interVal = new MyInterVal(()=>{console.log(1)},100,500)
+interVal.start()
+
+setTimeout(()=>{
+    interVal.clear()
+},5000)
+
+function getArrString(arr){
+    let res = [];
+    let lenX = arr.length;
+    let lenY = arr[0].length;
+  
+    function getStr(str,p){
+      for(let i = 0; i < lenY; i++){
+        if((arr[p][i] === arr[p][i - 1]) && i){
+          continue;
+        }
+        let strs = str; 
+        strs += arr[p][i];
+  
+        if(p < lenX - 1){
+          getStr(strs,p + 1);
+        } else {
+          res.push(strs);
+        }
+      }
+      
+    }
+  
+    console.time();
+    getStr('',0);
+    console.timeEnd();
+  
+    return res;
+  }
+  
+  let doubleArr = [['A','B'],['a','b'],[1,2],[4,4]]
+  
+  console.log(getArrString(doubleArr));
+
 - Bulleted
 - List
 
