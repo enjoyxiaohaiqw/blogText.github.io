@@ -1820,6 +1820,137 @@ bigo 音视频sdk工程师
 9.vue路由原理
 10.项目中一些业务组件的封装
 
+// 实现一个函数add(1)(2, 3)(4).getValue()
+// function add(){
+//     let sum = Array.from(arguments).reduce((a,b)=>{
+//         return a +b
+//     })
+//     function fn(){
+//         let result = Array.from(arguments).reduce((a,b)=>{
+//             return a +b
+//         })
+//         sum += result;
+//         return fn
+//     }
+//     fn.getValue = function (){
+//         return sum;
+//     }
+//     return fn;
+// }
+// console.log(add(1).getValue())
+
+// console.log(add(1)(2)(3).getValue())
+// console.log(add(1)(2,5)(3).getValue())
+
+function add(){
+    let res = Array.from(arguments).reduce((a,b)=>{
+        return a +b
+    })
+    function fn(...args){
+        
+        return  add.apply(null,[res,...args])
+    }
+    fn.getValue = function (){
+        return res;
+    }
+    return fn;
+}
+console.log(add(1).getValue())
+
+console.log(add(1)(2)(3).getValue())
+console.log(add(1)(2,5)(3).getValue())
+
+function get(arr) {
+    // debugger
+    for (let i = 0; i < arr.length; i++) {
+        // debugger
+        let result = arr[i].reduce((pre, cur) => pre +=cur)
+        // console.log(result,'result')
+        if (result>1) return false
+        if (arr.reduce((pre, cur) => pre += cur[i], 0) > 1) {
+            return false
+        }
+    
+    }
+    return true
+} 
+    let bool = get([
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0]
+    ])
+   
+    let bool1 = get([
+        [0, 0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1, 0],
+        [0, 1, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 1]
+    ])
+
+
+    console.log(bool, 'bool');
+    console.log(bool1, 'bool');
+
+    // let bool = get([
+//     [0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0],
+//     [0, 1, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 1],
+//     [0, 0, 0, 0, 0, 0]
+// ])
+
+// let bool1 = get([
+//     [0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 1, 0],
+//     [0, 1, 0, 0, 0, 0],
+//     [0, 1, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 1],
+//     [0, 0, 0, 0, 0, 1],
+//     [0, 0, 0, 0, 0, 1],
+//     [0, 0, 0, 0, 0, 1]
+// ])
+
+
+function valid(array) {
+    let record = new Set();
+    for (let i = 0; i <array.length; i++) {
+        let row = array[i];
+        // console.log(row,'row')
+        let index = row.indexOf(1);
+        if(index >0 ){
+            if(index != row.lastIndexOf(1)){
+                return false
+            }
+            if(record.has(index)){
+                 return false
+            }
+            record.add(index)
+        }
+        
+    }
+    return true
+
+}
+let bool = valid([
+    [0, 0, 0, 0, 1, 0,0,1],
+    [0, 0, 0, 0, 0, 0,0,0],
+    [0, 1, 0, 0, 0, 0,0,0],
+    [0, 0, 0, 0, 0, 0,0,0],
+    [0, 0, 0, 0, 0, 1,0,0],
+    [0, 0, 0, 0, 0, 0,0,0],
+    [0, 0, 0, 0, 0, 0,0,0]
+    
+])
+console.log(bool)
+
 - Bulleted
 - List
 
