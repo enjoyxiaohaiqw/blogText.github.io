@@ -2975,6 +2975,26 @@ createRequest(tasks, 2, results => {
     console.log(results);
 });
 
+// 反转链表： 1 -> 2 -> 3 -> 4 -> 5 -> null    2 -> 1 -> 4 -> 3 -> 5 -> null
+function reverse(head,k){
+   let [pre,cur] = [null,head];
+   // 判断是否
+    let p = head;
+    for (let i = 0; i < k; i++) {
+       if(p === null )  return head;
+       p= p.next;
+    }
+    // 反转
+    for (let i = 0; i < k; i++) {
+        const temp = cur.next;
+        cur.next = pre;
+        pre = cur;
+        cur = temp;
+    }
+    head.next = reverse(cur,k);
+    return pre;
+}
+
 
 - Bulleted
 - List
