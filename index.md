@@ -2996,6 +2996,36 @@ function reverse(head,k){
 }
 
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .div1 {
+            height: 60px;
+            width: 1600px;
+            background-image: linear-gradient(90deg,green 50%,blue 50%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color:transparent;
+            animation: hue  10s linear;
+            animation-fill-mode: forwards;
+        }
+        @keyframes hue {
+            0%{}
+            100%{
+                background-position: 800px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="div1">dfsgdfsgs都是多个收到过水电费dfgis见到过iodsjgoejgoije如果送给我收到过十多个</div>
+</body>
+</html>
+
+
 - Bulleted
 - List
 
