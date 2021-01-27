@@ -3025,6 +3025,174 @@ function reverse(head,k){
 </body>
 </html>
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .father {
+      margin-top: 100px;
+      width: 100px;
+      height: 100px;
+      background: #fac;
+    }
+    .son {
+      width: 50px;
+      height: 50px;
+      background: #cfa;
+    }
+    
+    .content {
+      width: 200px;
+      height: 200px;
+      border: 2px solid #fac;
+      margin-top: 100px;
+    }
+    .item {
+      width: 50px;
+      height: 50px;
+      background: #acf;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <button id="btn">click me</button>
+  <div class="father" id="f">
+    <div class="son" id="s"></div>
+  </div>
+
+  <div class="content">
+  </div>
+  <script>
+    // JS 事件
+
+    // 1. 事件的意义
+     //  页面交互
+    // 2. 常用的事件
+    // click, mousedown, mouseup, mousemove, mouseenter, mouseleave
+    // keydown, keyup, keypress
+    // change, select, input, reset, submit
+    // load, scroll
+    
+    // DOM分级 了解
+    // 0 DOM 句柄式（特定的指针），效率最高
+    // 1 DOM 
+    // 2 DOM w3c addEventListener, attachEvent
+    // 3 DOM 多些事件分类， 自定义事件
+
+    // 3，事件的绑定与解绑。
+    // a. 事件绑定
+    // onclick
+    var btn = document.getElementById('btn');
+    // btn.onclick = function () {
+    //   console.log('onclick');
+    // };
+    // btn.onclick = function () {
+    //   console.log('onclick 1')
+    // }
+    // 句柄式，事件绑定，相同类型，只能绑定一个处理函数，多个会被覆盖。
+
+    // addEventListener(type, fn);
+    // btn.addEventListener('click', function () {
+    //   console.log('addEvent');
+    // });
+    // btn.addEventListener('click', function () {
+    //   console.log('addEvent');
+    // });
+    // btn.addEventListener('click', function () {
+    //   console.log('addEvent');
+    // });
+    // 匿名函数
+
+    // function click() {
+    //   console.log('click');
+    // }
+    // btn.addEventListener('click', click);
+    // btn.addEventListener('click', click);
+    // btn.addEventListener('click', click);
+
+    // ie 
+
+    // btn.attachEvent('onclick', cb);
+    // btn.detachEvent('onclick', cb);
+
+    // 事件解绑
+    // 句柄式：
+    // btn.onclick = null;
+    // addEventListener
+    // removeEventListener;
+    // function fn() {
+    //   console.log('addEvent');
+    //   btn.removeEventListener('click', fn);
+    // }
+    // btn.addEventListener('click', fn);  
+
+
+    // 事件机制。
+
+    // 捕获与冒泡
+    // 存在父子结构。
+
+    var father = document.getElementById('f');
+    var son = document.getElementById('s');
+    
+
+    father.addEventListener('click', function () {
+      console.log('father 冒泡');
+    });
+    son.addEventListener('click', function () {
+      console.log('son 冒泡');
+    });
+
+    father.addEventListener('click', function () {
+      console.log('father 捕获');
+    }, true);
+    son.addEventListener('click', function () {
+      console.log('son 捕获');
+    }, true);
+
+    // 捕获： 从上到下（从父级到子级）
+    // 冒泡： 从下到上（从子级到父级）
+
+    // 先捕获， 目标阶段， 在冒泡
+  
+    // 事件委托（事件冒泡）
+    // 多个DOM元素，具有相同的处理事件和处理函数。
+    // 动态DOM添加。
+    var content = document.getElementsByClassName('content')[0];
+    btn.onclick = (function () {
+      var i = 0;
+      return function () {
+        var item = document.createElement('div');
+        item.className='item';
+        item.innerHTML = i;
+        // item.onclick = (function(j) {
+        //   return function () {
+        //     console.log(j);
+        //   }
+        // })(i);
+        i++;
+        content.appendChild(item);
+      }
+    })();
+
+    content.onclick = function (e) {
+      console.log(e.target.innerHTML);
+    }
+
+
+    // htmlwebpackPlugin
+    // template
+    // path
+
+
+    
+  </script>
+</body>
+</html>
 
 - Bulleted
 - List
