@@ -3183,12 +3183,37 @@ function reverse(head,k){
       console.log(e.target.innerHTML);
     }
 
-
     // htmlwebpackPlugin
     // template
     // path
+    // let a = 0;
+
+// let yideng = async ()=>{
+//     console.log(111);
+//     a = a + (await 10);
+//     console.log(a);
+// };
+// yideng()
+// console.log(++a)
+
+// 111
+// 1
+// 10
 
 
+// let a = 0;
+
+// let yideng = async ()=>{
+//     console.log(111);
+//     a =  (await 10) + a;
+//     console.log(a);
+// };
+// yideng()
+// console.log(++a)
+
+// 111
+// 1
+// 11
     
   </script>
 </body>
